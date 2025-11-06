@@ -1,54 +1,64 @@
-import React, { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { Award, BarChart3, Users } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const counters = [
-  { label: 'IIM Calls Secured', value: 420 },
-  { label: 'Average Percentile', value: 98 },
-  { label: 'Mentor Sessions', value: 1200 },
+  { label: 'IIM Calls', value: 420 },
+  { label: '99%ile+ Achievers', value: 86 },
+  { label: 'Mentor Sessions', value: 3200 },
 ];
 
-const Stats = () => {
-  const sectionRef = useRef(null);
+export default function Stats() {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const nums = sectionRef.current?.querySelectorAll('[data-counter]');
-    nums?.forEach((el) => {
-      const target = Number(el.getAttribute('data-target')) || 0;
-      gsap.fromTo(
-        { val: 0 },
-        { val: target, duration: 2, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 80%' } },
-      );
-      const tween = gsap.to({}, { duration: 2, onUpdate: () => {
-        const current = Math.floor(gsap.getProperty(el, 'val') || 0);
-        el.textContent = `${current}`;
-      }});
-      // Simpler approach: animate text directly
-      let obj = { n: 0 };
-      gsap.to(obj, {
-        n: target,
-        duration: 2,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: el, start: 'top 85%' },
-        onUpdate: () => { el.textContent = Math.floor(obj.n).toString(); }
-      });
-    });
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative bg-[#101010] text-white py-20 border-t border-white/10">
-      <div className="mx-auto max-w-7xl px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-        {counters.map((c, i) => (
-          <div key={i} className="rounded-xl bg-white/5 border border-white/10 p-6">
-            <div className="text-4xl font-extrabold" style={{ color: '#f0fff0' }}>
-              <span data-counter data-target={c.value}>0</span>+
-            </div>
-            <div className="text-white/70 mt-2">{c.label}</div>
-          </div>
-        ))}
+    <section id="stats" ref={ref} className="py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-6 sm:grid-cols-3">
+          {counters.map((c) => (
+            <StatCard key={c.label} label={c.label} value={c.value} start={visible} />)
+          )}
+        </div>
       </div>
     </section>
   );
-};
+}
 
-export default Stats;
+function StatCard({ label, value, start }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let frame;
+    const duration = 1200;
+    const startTime = performance.now();
+    const animate = (t) => {
+      const progress = Math.min(1, (t - startTime) / duration);
+      setCount(Math.floor(value * progress));
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [start, value]);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+      <div className="text-4xl font-semibold tracking-tight text-[var(--light-green)]">{count.toLocaleString()}</div>
+      <div className="mt-2 text-white/70">{label}</div>
+    </div>
+  );
+}
